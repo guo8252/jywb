@@ -64,6 +64,70 @@
             box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
         }
 
+        .media-upload {
+            margin-top: 12px;
+            padding: 12px;
+            border: 2px dashed #bbdefb;
+            border-radius: 8px;
+            background: #f5f9ff;
+            transition: border-color 0.2s;
+        }
+
+        .media-upload:hover {
+            border-color: #1a73e8;
+        }
+
+        .media-upload input[type="file"] {
+            width: 100%;
+            font-size: 14px;
+            color: #555;
+            cursor: pointer;
+        }
+
+        .media-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .media-preview-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .media-preview-item img,
+        .media-preview-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .media-preview-item .remove-media {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .media-preview-item .remove-media:hover {
+            background: #e53935;
+        }
+
         .post-actions {
             display: flex;
             justify-content: space-between;
@@ -234,6 +298,30 @@
             color: #333;
             word-break: break-all;
             white-space: pre-wrap;
+            margin-bottom: 10px;
+        }
+
+        .post-media {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .post-media-item {
+            width: 160px;
+            height: 160px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            background: #000;
+        }
+
+        .post-media-item img,
+        .post-media-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .empty-state {
@@ -280,6 +368,16 @@
             opacity: 1;
         }
 
+        .media-type-tag {
+            display: inline-block;
+            font-size: 12px;
+            color: #1a73e8;
+            background: #e3f2fd;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 0 12px;
@@ -294,6 +392,11 @@
                 padding: 8px 18px;
                 font-size: 14px;
             }
+
+            .post-media-item {
+                width: calc(50% - 5px);
+                height: 140px;
+            }
         }
     </style>
 </head>
@@ -307,6 +410,12 @@
     <main class="container">
         <section class="post-box">
             <textarea id="contentInput" placeholder="分享新鲜事..." maxlength="500"></textarea>
+            
+            <div class="media-upload">
+                <input type="file" id="mediaInput" accept="image/*,video/*" multiple>
+            </div>
+            <div class="media-preview" id="mediaPreview"></div>
+            
             <div class="post-actions">
                 <span class="char-count" id="charCount">0/500</span>
                 <button class="btn btn-primary" id="publishBtn">发布</button>
@@ -327,6 +436,8 @@
     <script>
         const STORAGE_KEY = 'simple_weibo_posts';
         const MAX_LENGTH = 500;
+        const MAX_FILE_SIZE = 2 * 1024 * 1024;
+        const MAX_MEDIA_PER_POST = 4;
 
         const contentInput = document.getElementById('contentInput');
         const publishBtn = document.getElementById('publishBtn');
@@ -334,6 +445,24 @@
         const postList = document.getElementById('postList');
         const feedCount = document.getElementById('feedCount');
         const toast = document.getElementById('toast');
+        const mediaInput = document.getElementById('mediaInput');
+        const mediaPreview = document.getElementById('mediaPreview');
+
+        let pendingMedia = [];
+
+        function generateSvgImage(text, color1, color2, width, height) {
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+                <defs>
+                    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:${color1};stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:${color2};stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#g)" />
+                <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="24" font-family="sans-serif">${text}</text>
+            </svg>`;
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+        }
 
         function getPosts() {
             try {
@@ -377,6 +506,43 @@
             return div.innerHTML;
         }
 
+        function renderMediaPreview() {
+            if (pendingMedia.length === 0) {
+                mediaPreview.innerHTML = '';
+                return;
+            }
+
+            mediaPreview.innerHTML = pendingMedia.map((media, index) => `
+                <div class="media-preview-item">
+                    ${media.type === 'image' 
+                        ? `<img src="${media.data}" alt="预览">` 
+                        : `<video src="${media.data}" muted></video>`}
+                    <button class="remove-media" onclick="removePendingMedia(${index})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removePendingMedia(index) {
+            pendingMedia.splice(index, 1);
+            renderMediaPreview();
+        }
+
+        function renderPostMedia(mediaList) {
+            if (!mediaList || mediaList.length === 0) return '';
+
+            const typeTag = mediaList.some(m => m.type === 'video') 
+                ? '<span class="media-type-tag">视频</span>' 
+                : (mediaList.some(m => m.type === 'image') ? '<span class="media-type-tag">图片</span>' : '');
+
+            return typeTag + '<div class="post-media">' + mediaList.map(media => `
+                <div class="post-media-item">
+                    ${media.type === 'image' 
+                        ? `<img src="${media.data}" alt="微博图片" loading="lazy">` 
+                        : `<video src="${media.data}" controls preload="metadata"></video>`}
+                </div>
+            `).join('') + '</div>';
+        }
+
         function renderPosts() {
             const posts = getPosts();
             feedCount.textContent = `共 ${posts.length} 条`;
@@ -404,6 +570,7 @@
                         <button class="delete-btn" onclick="deletePost(${post.id})">删除</button>
                     </div>
                     <div class="post-content">${escapeHtml(post.content)}</div>
+                    ${renderPostMedia(post.media)}
                 </article>
             `).join('');
         }
@@ -416,11 +583,49 @@
             }, 2000);
         }
 
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handleMediaSelect(e) {
+            const files = Array.from(e.target.files);
+            
+            if (pendingMedia.length + files.length > MAX_MEDIA_PER_POST) {
+                showToast(`每条微博最多上传 ${MAX_MEDIA_PER_POST} 个媒体文件`);
+                mediaInput.value = '';
+                return;
+            }
+
+            for (const file of files) {
+                if (file.size > MAX_FILE_SIZE) {
+                    showToast(`文件 ${file.name} 超过2MB限制`);
+                    continue;
+                }
+
+                try {
+                    const data = await readFileAsBase64(file);
+                    const type = file.type.startsWith('video/') ? 'video' : 'image';
+                    pendingMedia.push({ type, data, name: file.name });
+                } catch (err) {
+                    showToast('读取文件失败');
+                    console.error(err);
+                }
+            }
+
+            renderMediaPreview();
+            mediaInput.value = '';
+        }
+
         function publishPost() {
             const content = contentInput.value.trim();
             
-            if (!content) {
-                showToast('请输入微博内容');
+            if (!content && pendingMedia.length === 0) {
+                showToast('请输入微博内容或上传媒体');
                 contentInput.focus();
                 return;
             }
@@ -434,6 +639,7 @@
             const newPost = {
                 id: Date.now(),
                 content: content,
+                media: [...pendingMedia],
                 createTime: new Date().toISOString()
             };
 
@@ -443,6 +649,8 @@
             contentInput.value = '';
             charCount.textContent = `0/${MAX_LENGTH}`;
             charCount.classList.remove('warning');
+            pendingMedia = [];
+            renderMediaPreview();
             renderPosts();
             showToast('发布成功');
         }
@@ -454,6 +662,54 @@
             savePosts(posts);
             renderPosts();
             showToast('删除成功');
+        }
+
+        function initSamplePosts() {
+            const posts = getPosts();
+            if (posts.length > 0) return;
+
+            const sampleImages = [
+                generateSvgImage('晨曦', '#FF8C00', '#1a73e8', 400, 300),
+                generateSvgImage('山林', '#4CAF50', '#2E7D32', 400, 300),
+                generateSvgImage('星空', '#1a237e', '#7c4dff', 400, 300),
+                generateSvgImage('海浪', '#00BCD4', '#01579b', 400, 300),
+                generateSvgImage('花田', '#f48fb1', '#c2185b', 400, 300)
+            ];
+
+            const sampleVideo = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+
+            const samples = [
+                { content: '静言悟本，记录生活点滴。今天是个好日子，和大家分享一张美丽的风景图。', imageIndex: 0 },
+                { content: '清晨的山林，空气格外清新，让人心旷神怡。', imageIndex: 1 },
+                { content: '昨晚拍到的星空，太美了！分享给大家。', imageIndex: 2 },
+                { content: '海浪拍打礁石，听，是大海的声音。', imageIndex: 3 },
+                { content: '春天的花田，满眼都是希望。', imageIndex: 4 },
+                { content: '一段有趣的视频，推荐给大家观看。', isVideo: true },
+                { content: '生活不止眼前的苟且，还有诗和远方。', imageIndex: 0 },
+                { content: '静下心，感悟本真，这就是生活的意义。', imageIndex: 2 },
+                { content: '记录一次难忘的旅行，风景如画。', imageIndex: 1 },
+                { content: '今天的晚霞特别美，忍不住拍了下来。', imageIndex: 3 }
+            ];
+
+            const now = Date.now();
+            const samplePosts = samples.map((sample, index) => {
+                const media = [];
+                if (sample.isVideo) {
+                    media.push({ type: 'video', data: sampleVideo, name: 'sample-video.mp4' });
+                } else {
+                    media.push({ type: 'image', data: sampleImages[sample.imageIndex], name: `sample-${index}.svg` });
+                }
+
+                return {
+                    id: now - index * 1000,
+                    content: sample.content,
+                    media: media,
+                    createTime: new Date(now - index * 3600000).toISOString()
+                };
+            });
+
+            savePosts(samplePosts);
+            renderPosts();
         }
 
         contentInput.addEventListener('input', function() {
@@ -474,7 +730,12 @@
         });
 
         publishBtn.addEventListener('click', publishPost);
+        mediaInput.addEventListener('change', handleMediaSelect);
 
+        window.removePendingMedia = removePendingMedia;
+        window.deletePost = deletePost;
+
+        initSamplePosts();
         renderPosts();
     </script>
 </body>
