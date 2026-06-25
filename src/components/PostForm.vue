@@ -70,13 +70,13 @@ function removeMedia(index) {
   pendingMedia.value.splice(index, 1)
 }
 
-function publish() {
+async function publish() {
   if (!userStore.isLoggedIn) {
     emit('notify', '请先登录')
     return
   }
 
-  const result = postStore.addPost(content.value, pendingMedia.value)
+  const result = await postStore.addPost(content.value, pendingMedia.value)
   emit('notify', result.message)
 
   if (result.success) {

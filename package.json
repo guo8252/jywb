@@ -7,16 +7,20 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test": "npm run server:test && vitest run",
+    "test:ui": "vitest --ui",
+    "server:dev": "node server/index.js",
+    "server:test": "vitest run --config server/vitest.config.js"
   },
   "dependencies": {
     "pinia": "^3.0.4",
     "vue": "^3.5.38"
   },
   "devDependencies": {
+    "@hono/node-server": "^2.0.6",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/test-utils": "^2.4.11",
+    "hono": "^4.12.27",
     "jsdom": "^29.1.1",
     "vite": "^6.2.0",
     "vitest": "^4.1.9"

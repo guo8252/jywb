@@ -42,9 +42,9 @@ function showToast(message) {
   toastRef.value?.show(message)
 }
 
-function handleDelete(id) {
+async function handleDelete(id) {
   if (!confirm('确定要删除这条微博吗？')) return
-  const result = postStore.deletePost(id)
+  const result = await postStore.deletePost(id)
   showToast(result.message)
 }
 

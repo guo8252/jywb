@@ -52,14 +52,14 @@ function toggleMode() {
   isRegister.value = !isRegister.value
 }
 
-function submit() {
+async function submit() {
   const result = isRegister.value
-    ? userStore.register(username.value, password.value)
-    : userStore.login(username.value, password.value)
+    ? await userStore.register(username.value, password.value)
+    : await userStore.login(username.value, password.value)
 
   if (result.success) {
-    postStore.loadPosts()
-    postStore.initSamplePosts()
+    await postStore.loadPosts()
+    await postStore.initSamplePosts()
     close()
   }
 

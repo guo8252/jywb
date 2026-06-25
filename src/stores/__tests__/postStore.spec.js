@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useUserStore } from '../user'
 import { usePostStore } from '../post'
+import { setupTestApi } from './apiSetup'
 
-const POSTS_PREFIX = 'simple_weibo_posts'
+setupTestApi()
 
 describe('usePostStore', () => {
   beforeEach(() => {
@@ -18,112 +19,108 @@ describe('usePostStore', () => {
     expect(store.postCount).toBe(0)
   })
 
-  it('should load posts for current user', () => {
+  it('should load posts for current user', async () => {
     const userStore = useUserStore()
-    userStore.register('alice', '123456')
-
-    localStorage.setItem(`${POSTS_PREFIX}_alice`, JSON.stringify([
-      { id: 1, content: 'hello', author: 'alice', media: [], createTime: '2026-01-01T00:00:00.000Z' }
-    ]))
+    await userStore.register('alice', '123456')
 
     const postStore = usePostStore()
-    postStore.loadPosts()
+    await postStore.addPost('hello', [])
+    postStore.posts = []
+    await postStore.loadPosts()
 
     expect(postStore.posts).toHaveLength(1)
     expect(postStore.posts[0].content).toBe('hello')
     expect(postStore.postCount).toBe(1)
   })
 
-  it('should add a post with content', () => {
+  it('should add a post with content', async () => {
     const userStore = useUserStore()
-    userStore.register('alice', '123456')
+    await userStore.register('alice', '123456')
 
     const postStore = usePostStore()
-    const result = postStore.addPost('My first post', [])
+    const result = await postStore.addPost('My first post', [])
 
     expect(result.success).toBe(true)
     expect(postStore.posts).toHaveLength(1)
     expect(postStore.posts[0].content).toBe('My first post')
     expect(postStore.posts[0].author).toBe('alice')
-    expect(localStorage.getItem(`${POSTS_PREFIX}_alice`)).toContain('My first post')
   })
 
-  it('should add a post with media', () => {
+  it('should add a post with media', async () => {
     const userStore = useUserStore()
-    userStore.register('alice', '123456')
+    await userStore.register('alice', '123456')
 
     const postStore = usePostStore()
     const media = [{ type: 'image', data: 'data:image/png;base64,abc', name: 'a.png' }]
-    postStore.addPost('With image', media)
+    await postStore.addPost('With image', media)
 
     expect(postStore.posts[0].media).toEqual(media)
   })
 
-  it('should reject empty post', () => {
+  it('should reject empty post', async () => {
     const userStore = useUserStore()
-    userStore.register('alice', '123456')
+    await userStore.register('alice', '123456')
 
     const postStore = usePostStore()
-    const result = postStore.addPost('', [])
+    const result = await postStore.addPost('', [])
 
     expect(result.success).toBe(false)
     expect(result.message).toBe('请输入微博内容或上传媒体')
   })
 
-  it('should delete own post', () => {
+  it('should delete own post', async () => {
     const userStore = useUserStore()
-    userStore.register('alice', '123456')
+    await userStore.register('alice', '123456')
 
     const postStore = usePostStore()
-    postStore.addPost('hello', [])
+    await postStore.addPost('hello', [])
     const id = postStore.posts[0].id
 
-    const result = postStore.deletePost(id)
+    const result = await postStore.deletePost(id)
     expect(result.success).toBe(true)
     expect(postStore.posts).toHaveLength(0)
-    expect(localStorage.getItem(`${POSTS_PREFIX}_alice`)).toBe('[]')
   })
 
-  it('should not delete post when not logged in', () => {
+  it('should not delete post when not logged in', async () => {
     const postStore = usePostStore()
-    const result = postStore.deletePost(1)
+    const result = await postStore.deletePost(1)
 
     expect(result.success).toBe(false)
     expect(result.message).toBe('请先登录')
   })
 
-  it('should keep posts isolated between users', () => {
+  it('should keep posts isolated between users', async () => {
     const userStore = useUserStore()
-    userStore.register('alice', '123456')
+    await userStore.register('alice', '123456')
 
     const postStore = usePostStore()
-    postStore.addPost('alice post', [])
+    await postStore.addPost('alice post', [])
 
-    userStore.register('bob', '123456')
-    postStore.loadPosts()
+    await userStore.register('bob', '123456')
+    await postStore.loadPosts()
 
     expect(postStore.posts).toEqual([])
   })
 
-  it('should initialize sample posts for new user', () => {
+  it('should initialize sample posts for new user', async () => {
     const userStore = useUserStore()
-    userStore.register('alice', '123456')
+    await userStore.register('alice', '123456')
 
     const postStore = usePostStore()
-    postStore.initSamplePosts()
+    await postStore.initSamplePosts()
 
     expect(postStore.posts.length).toBe(10)
     expect(postStore.postCount).toBe(10)
     expect(postStore.posts[0].author).toBe('alice')
   })
 
-  it('should not overwrite existing posts when initializing samples', () => {
+  it('should not overwrite existing posts when initializing samples', async () => {
     const userStore = useUserStore()
-    userStore.register('alice', '123456')
+    await userStore.register('alice', '123456')
 
     const postStore = usePostStore()
-    postStore.addPost('existing', [])
-    postStore.initSamplePosts()
+    await postStore.addPost('existing', [])
+    await postStore.initSamplePosts()
 
     expect(postStore.posts.length).toBe(1)
     expect(postStore.posts[0].content).toBe('existing')
