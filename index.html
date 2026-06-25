@@ -151,6 +151,160 @@
             padding: 0 16px;
         }
 
+        .header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            position: relative;
+        }
+
+        .user-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 4px 8px 4px 4px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            transition: background 0.2s;
+            position: relative;
+        }
+
+        .user-bar:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .user-bar:hover .user-menu {
+            display: flex;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-name {
+            color: white;
+            font-size: 14px;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .user-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 100px;
+            overflow: hidden;
+            z-index: 200;
+        }
+
+        .user-menu button {
+            padding: 10px 16px;
+            border: none;
+            background: white;
+            color: #333;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.2s;
+        }
+
+        .user-menu button:hover {
+            background: #f0f2f5;
+            color: #1a73e8;
+        }
+
+        .user-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 300;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .user-modal-content {
+            background: white;
+            padding: 28px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 360px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .user-modal-content h2 {
+            margin-bottom: 20px;
+            color: #0d47a1;
+            text-align: center;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 24px;
+            gap: 12px;
+        }
+
+        .btn-secondary {
+            background: #f0f2f5;
+            color: #555;
+        }
+
+        .btn-secondary:hover {
+            background: #e4e6e9;
+        }
+
         .header h1 {
             font-size: 22px;
             font-weight: 600;
@@ -530,6 +684,9 @@
     <header class="header">
         <div class="container">
             <h1>静言悟本</h1>
+            <div class="user-info" id="userInfo">
+                <button class="btn btn-primary" onclick="showUserModal()">登录</button>
+            </div>
         </div>
     </header>
 
@@ -559,8 +716,28 @@
 
     <div class="toast" id="toast"></div>
 
+    <div class="user-modal" id="userModal">
+        <div class="user-modal-content">
+            <h2 id="userModalTitle">用户登录</h2>
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="usernameInput" placeholder="请输入用户名" maxlength="20">
+            </div>
+            <div class="form-group" id="passwordGroup">
+                <label>密码</label>
+                <input type="password" id="passwordInput" placeholder="请输入密码（可选）" maxlength="20">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="switchModeBtn">去注册</button>
+                <button class="btn btn-primary" id="submitUserBtn">登录</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const STORAGE_KEY = 'simple_weibo_posts';
+        const USERS_KEY = 'simple_weibo_users';
+        const CURRENT_USER_KEY = 'simple_weibo_current_user';
         const MAX_LENGTH = 500;
         const MAX_FILE_SIZE = 2 * 1024 * 1024;
         const MAX_MEDIA_PER_POST = 4;
@@ -573,8 +750,17 @@
         const toast = document.getElementById('toast');
         const mediaInput = document.getElementById('mediaInput');
         const mediaPreview = document.getElementById('mediaPreview');
+        const userInfo = document.getElementById('userInfo');
+        const userModal = document.getElementById('userModal');
+        const userModalTitle = document.getElementById('userModalTitle');
+        const usernameInput = document.getElementById('usernameInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const passwordGroup = document.getElementById('passwordGroup');
+        const switchModeBtn = document.getElementById('switchModeBtn');
+        const submitUserBtn = document.getElementById('submitUserBtn');
 
         let pendingMedia = [];
+        let isRegisterMode = false;
 
         function generateSvgImage(text, color1, color2, width, height) {
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
@@ -591,8 +777,11 @@
         }
 
         function getPosts() {
+            const user = getCurrentUser();
+            if (!user) return [];
+            
             try {
-                const data = localStorage.getItem(STORAGE_KEY);
+                const data = localStorage.getItem(STORAGE_KEY + '_' + user.username);
                 return data ? JSON.parse(data) : [];
             } catch (e) {
                 console.error('读取本地数据失败', e);
@@ -601,12 +790,166 @@
         }
 
         function savePosts(posts) {
+            const user = getCurrentUser();
+            if (!user) return;
+            
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+                localStorage.setItem(STORAGE_KEY + '_' + user.username, JSON.stringify(posts));
             } catch (e) {
                 console.error('保存本地数据失败', e);
                 showToast('存储失败，请检查浏览器空间');
             }
+        }
+
+        function getUsers() {
+            try {
+                const data = localStorage.getItem(USERS_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch (e) {
+                console.error('读取用户数据失败', e);
+                return [];
+            }
+        }
+
+        function saveUsers(users) {
+            try {
+                localStorage.setItem(USERS_KEY, JSON.stringify(users));
+            } catch (e) {
+                console.error('保存用户数据失败', e);
+                showToast('用户数据保存失败');
+            }
+        }
+
+        function getCurrentUser() {
+            try {
+                const data = localStorage.getItem(CURRENT_USER_KEY);
+                return data ? JSON.parse(data) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function setCurrentUser(user) {
+            if (user) {
+                localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+            } else {
+                localStorage.removeItem(CURRENT_USER_KEY);
+            }
+        }
+
+        function getAvatarColor(username) {
+            const colors = ['#1a73e8', '#0d47a1', '#42a5f5', '#4caf50', '#ff9800', '#9c27b0', '#e91e63', '#00bcd4'];
+            let hash = 0;
+            for (let i = 0; i < username.length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        function getAvatarText(username) {
+            return username.slice(0, 2).toUpperCase();
+        }
+
+        function updateUserInfo() {
+            const user = getCurrentUser();
+            if (!user) {
+                userInfo.innerHTML = `
+                    <button class="btn btn-primary" onclick="showUserModal()">登录</button>
+                `;
+                return;
+            }
+
+            const color = getAvatarColor(user.username);
+            userInfo.innerHTML = `
+                <div class="user-bar">
+                    <div class="user-avatar" style="background: ${color}">${getAvatarText(user.username)}</div>
+                    <span class="user-name">${escapeHtml(user.username)}</span>
+                    <div class="user-menu">
+                        <button onclick="switchUser()">切换用户</button>
+                        <button onclick="logout()">退出登录</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showUserModal() {
+            userModal.style.display = 'flex';
+            usernameInput.focus();
+        }
+
+        function hideUserModal() {
+            userModal.style.display = 'none';
+            usernameInput.value = '';
+            passwordInput.value = '';
+        }
+
+        function toggleUserMode() {
+            isRegisterMode = !isRegisterMode;
+            if (isRegisterMode) {
+                userModalTitle.textContent = '用户注册';
+                submitUserBtn.textContent = '注册';
+                switchModeBtn.textContent = '去登录';
+                passwordGroup.style.display = 'block';
+            } else {
+                userModalTitle.textContent = '用户登录';
+                submitUserBtn.textContent = '登录';
+                switchModeBtn.textContent = '去注册';
+                passwordGroup.style.display = 'block';
+            }
+        }
+
+        function handleUserSubmit() {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!username) {
+                showToast('请输入用户名');
+                return;
+            }
+
+            const users = getUsers();
+
+            if (isRegisterMode) {
+                if (users.find(u => u.username === username)) {
+                    showToast('用户名已存在');
+                    return;
+                }
+
+                const newUser = { username, password };
+                users.push(newUser);
+                saveUsers(users);
+                setCurrentUser(newUser);
+                showToast('注册成功');
+            } else {
+                const user = users.find(u => u.username === username);
+                if (!user) {
+                    showToast('用户不存在，请先注册');
+                    return;
+                }
+                if (user.password && user.password !== password) {
+                    showToast('密码错误');
+                    return;
+                }
+                setCurrentUser(user);
+                showToast('登录成功');
+            }
+
+            hideUserModal();
+            updateUserInfo();
+            initSamplePosts();
+            renderPosts();
+        }
+
+        function switchUser() {
+            setCurrentUser(null);
+            showUserModal();
+        }
+
+        function logout() {
+            setCurrentUser(null);
+            updateUserInfo();
+            renderPosts();
+            showToast('已退出登录');
         }
 
         function formatTime(dateString) {
@@ -670,6 +1013,19 @@
         }
 
         function renderPosts() {
+            const user = getCurrentUser();
+            if (!user) {
+                postList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">👤</div>
+                        <p class="empty-text">请先登录或注册，开始你的静言悟本之旅</p>
+                        <button class="btn btn-primary" onclick="showUserModal()" style="margin-top: 16px;">立即登录</button>
+                    </div>
+                `;
+                feedCount.textContent = '共 0 条';
+                return;
+            }
+
             const posts = getPosts();
             feedCount.textContent = `共 ${posts.length} 条`;
 
@@ -683,22 +1039,28 @@
                 return;
             }
 
-            postList.innerHTML = posts.map(post => `
+            postList.innerHTML = posts.map(post => {
+                const authorColor = getAvatarColor(post.author || user.username);
+                const authorText = getAvatarText(post.author || user.username);
+                const authorName = post.author || user.username;
+                const isSelf = authorName === user.username;
+
+                return `
                 <article class="post-item" data-id="${post.id}">
                     <div class="post-header">
                         <div class="post-author">
-                            <div class="avatar">我</div>
+                            <div class="avatar" style="background: ${authorColor}">${authorText}</div>
                             <div class="author-info">
-                                <span class="author-name">我</span>
+                                <span class="author-name">${escapeHtml(authorName)}${isSelf ? '' : ' '}</span>
                                 <span class="post-time">${formatTime(post.createTime)}</span>
                             </div>
                         </div>
-                        <button class="delete-btn" onclick="deletePost(${post.id})">删除</button>
+                        ${isSelf ? `<button class="delete-btn" onclick="deletePost(${post.id})">删除</button>` : ''}
                     </div>
                     <div class="post-content">${escapeHtml(post.content)}</div>
                     ${renderPostMedia(post.media)}
                 </article>
-            `).join('');
+            `}).join('');
         }
 
         function showToast(message) {
@@ -748,6 +1110,13 @@
         }
 
         function publishPost() {
+            const user = getCurrentUser();
+            if (!user) {
+                showToast('请先登录');
+                showUserModal();
+                return;
+            }
+
             const content = contentInput.value.trim();
             
             if (!content && pendingMedia.length === 0) {
@@ -765,6 +1134,7 @@
             const newPost = {
                 id: Date.now(),
                 content: content,
+                author: user.username,
                 media: [...pendingMedia],
                 createTime: new Date().toISOString()
             };
@@ -791,6 +1161,9 @@
         }
 
         function initSamplePosts() {
+            const user = getCurrentUser();
+            if (!user) return;
+            
             const posts = getPosts();
             if (posts.length > 0) return;
 
@@ -829,6 +1202,7 @@
                 return {
                     id: now - index * 1000,
                     content: sample.content,
+                    author: user.username,
                     media: media,
                     createTime: new Date(now - index * 3600000).toISOString()
                 };
@@ -857,9 +1231,17 @@
 
         publishBtn.addEventListener('click', publishPost);
         mediaInput.addEventListener('change', handleMediaSelect);
+        switchModeBtn.addEventListener('click', toggleUserMode);
+        submitUserBtn.addEventListener('click', handleUserSubmit);
+        userModal.addEventListener('click', function(e) {
+            if (e.target === userModal) hideUserModal();
+        });
 
         window.removePendingMedia = removePendingMedia;
         window.deletePost = deletePost;
+        window.showUserModal = showUserModal;
+        window.switchUser = switchUser;
+        window.logout = logout;
 
         function createStars() {
             const stars = document.getElementById('stars');
@@ -877,6 +1259,7 @@
         }
 
         createStars();
+        updateUserInfo();
         initSamplePosts();
         renderPosts();
     </script>
