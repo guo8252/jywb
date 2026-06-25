@@ -17,9 +17,13 @@
       <span v-if="hasVideo" class="media-type-tag">视频</span>
       <span v-else class="media-type-tag">图片</span>
       <div class="media-list">
-        <div v-for="(media, index) in post.media" :key="index" class="post-media-item">
+        <div v-for="(media, index) in post.media" :key="index" class="post-media-item" :class="{ 'video-item': media.type === 'video' }">
           <img v-if="media.type === 'image'" :src="media.data" alt="微博图片" loading="lazy">
-          <video v-else :src="media.data" controls preload="metadata"></video>
+          <video v-else :src="media.data" controls preload="metadata" @error="handleVideoError"></video>
+          <div v-if="media.type === 'video' && videoError" class="video-fallback">
+            <span class="video-icon">▶</span>
+            <span class="video-tip">视频加载失败</span>
+          </div>
         </div>
       </div>
     </div>
@@ -27,7 +31,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useUserStore } from '../stores/user'
 import { formatTime } from '../utils/format'
 
@@ -41,11 +45,16 @@ const props = defineProps({
 defineEmits(['delete'])
 
 const userStore = useUserStore()
+const videoError = ref(false)
 
 const authorColor = computed(() => userStore.getAvatarColor(props.post.author))
 const authorText = computed(() => userStore.getAvatarText(props.post.author))
 const canDelete = computed(() => userStore.currentUser?.username === props.post.author)
 const hasVideo = computed(() => props.post.media?.some(m => m.type === 'video'))
+
+function handleVideoError() {
+  videoError.value = true
+}
 </script>
 
 <style scoped>
@@ -118,19 +127,19 @@ const hasVideo = computed(() => props.post.media?.some(m => m.type === 'video'))
 }
 
 .delete-btn {
-  background: none;
+  background: #f5f5f5;
   border: none;
-  color: #999;
+  color: #888;
   cursor: pointer;
   font-size: 13px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 6px 12px;
+  border-radius: 12px;
   transition: all 0.2s;
 }
 
 .delete-btn:hover {
-  color: #e53935;
-  background: #ffebee;
+  color: #fff;
+  background: #e53935;
 }
 
 .post-content {
@@ -169,6 +178,7 @@ const hasVideo = computed(() => props.post.media?.some(m => m.type === 'video'))
   overflow: hidden;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   background: #000;
+  position: relative;
 }
 
 .post-media-item img,
@@ -176,6 +186,37 @@ const hasVideo = computed(() => props.post.media?.some(m => m.type === 'video'))
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.video-item video {
+  position: relative;
+  z-index: 1;
+}
+
+.video-fallback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
+  color: white;
+  z-index: 2;
+}
+
+.video-icon {
+  font-size: 32px;
+  margin-bottom: 6px;
+  opacity: 0.9;
+}
+
+.video-tip {
+  font-size: 12px;
+  opacity: 0.8;
 }
 
 @media (max-width: 480px) {

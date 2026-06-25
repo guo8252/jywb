@@ -31,25 +31,39 @@ onMounted(() => {
 
 <style scoped>
 .earth-bg {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 420px;
-  height: 420px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 100vh;
   z-index: -1;
   pointer-events: none;
   opacity: 0.35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.earth-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(76, 175, 80, 0.15) 0%, transparent 60%);
 }
 
 .earth {
-  width: 100%;
-  height: 100%;
+  width: 420px;
+  height: 420px;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, #4caf50 0%, #2e7d32 40%, #1b5e20 100%);
   box-shadow: 0 0 80px rgba(76, 175, 80, 0.4), inset -30px -30px 60px rgba(0, 0, 0, 0.5);
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .earth::before {
@@ -111,11 +125,11 @@ onMounted(() => {
 }
 
 .stars {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
   z-index: -1;
   pointer-events: none;
 }
@@ -133,7 +147,7 @@ onMounted(() => {
 }
 
 @media (max-width: 480px) {
-  .earth-bg {
+  .earth {
     width: 300px;
     height: 300px;
   }
