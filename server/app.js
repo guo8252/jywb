@@ -34,6 +34,24 @@ function getUserPosts(username) {
   return posts.get(username) || []
 }
 
+function findPostById(id) {
+  for (const userPosts of posts.values()) {
+    const post = userPosts.find((p) => p.id === id)
+    if (post) return post
+  }
+  return null
+}
+
+function toggleUsername(list, username) {
+  const index = list.indexOf(username)
+  if (index === -1) {
+    list.push(username)
+    return true
+  }
+  list.splice(index, 1)
+  return false
+}
+
 function validateMedia(media) {
   if (!Array.isArray(media)) {
     return { valid: false, message: '媒体格式错误' }
@@ -105,6 +123,8 @@ function buildSamplePosts(username) {
       content: sample.content,
       author: username,
       media,
+      likes: [],
+      favorites: [],
       createTime: new Date(now - index * 3600000).toISOString()
     }
   })
@@ -165,6 +185,16 @@ app.get('/api/posts', (c) => {
   return c.json({ success: true, posts: getUserPosts(username) })
 })
 
+app.get('/api/posts/favorites', (c) => {
+  const username = c.req.query('username')?.trim()
+  if (!username) {
+    return c.json({ success: false, message: '缺少用户名' }, 400)
+  }
+  const allPosts = [...posts.values()].flat()
+  const favorites = allPosts.filter((post) => post.favorites.includes(username))
+  return c.json({ success: true, posts: favorites })
+})
+
 app.post('/api/posts', async (c) => {
   const body = await c.req.json()
   const username = body.username?.trim()
@@ -193,6 +223,8 @@ app.post('/api/posts', async (c) => {
     content,
     author: username,
     media,
+    likes: [],
+    favorites: [],
     createTime: new Date().toISOString()
   }
 
@@ -223,6 +255,50 @@ app.delete('/api/posts/:id', (c) => {
 
   posts.set(username, filtered)
   return c.json({ success: true, message: '删除成功' })
+})
+
+app.post('/api/posts/:id/like', async (c) => {
+  const body = await c.req.json()
+  const username = body.username?.trim()
+  if (!username) {
+    return c.json({ success: false, message: '缺少用户名' }, 400)
+  }
+
+  const idParam = c.req.param('id')
+  const id = Number(idParam)
+  if (!idParam || Number.isNaN(id)) {
+    return c.json({ success: false, message: '无效的微博ID' }, 400)
+  }
+
+  const post = findPostById(id)
+  if (!post) {
+    return c.json({ success: false, message: '微博不存在' }, 404)
+  }
+
+  const liked = toggleUsername(post.likes, username)
+  return c.json({ success: true, liked, likes: post.likes })
+})
+
+app.post('/api/posts/:id/favorite', async (c) => {
+  const body = await c.req.json()
+  const username = body.username?.trim()
+  if (!username) {
+    return c.json({ success: false, message: '缺少用户名' }, 400)
+  }
+
+  const idParam = c.req.param('id')
+  const id = Number(idParam)
+  if (!idParam || Number.isNaN(id)) {
+    return c.json({ success: false, message: '无效的微博ID' }, 400)
+  }
+
+  const post = findPostById(id)
+  if (!post) {
+    return c.json({ success: false, message: '微博不存在' }, 404)
+  }
+
+  const favorited = toggleUsername(post.favorites, username)
+  return c.json({ success: true, favorited, favorites: post.favorites })
 })
 
 app.post('/api/posts/init-samples', async (c) => {

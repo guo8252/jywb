@@ -1,8 +1,11 @@
 <template>
   <section class="feed">
     <div class="feed-header">
-      <span class="feed-title">最新动态</span>
-      <span class="feed-count">共 {{ postStore.postCount }} 条</span>
+      <div class="feed-tabs">
+        <button class="tab-btn" :class="{ active: activeTab === 'latest' }" @click="switchTab('latest')">最新动态</button>
+        <button class="tab-btn" :class="{ active: activeTab === 'favorites' }" @click="switchTab('favorites')">我的收藏</button>
+      </div>
+      <span class="feed-count">共 {{ displayedCount }} 条</span>
     </div>
 
     <div v-if="!userStore.isLoggedIn" class="empty-state">
@@ -11,24 +14,44 @@
       <button class="btn btn-primary" @click="$emit('login')">立即登录</button>
     </div>
 
-    <div v-else-if="postStore.postCount === 0" class="empty-state">
-      <div class="empty-icon">📝</div>
-      <p class="empty-text">还没有微博，快来发布第一条吧！</p>
+    <div v-else-if="displayedCount === 0" class="empty-state">
+      <div class="empty-icon">{{ activeTab === 'favorites' ? '⭐' : '📝' }}</div>
+      <p class="empty-text">{{ activeTab === 'favorites' ? '还没有收藏任何微博，看到喜欢的就点收藏吧！' : '还没有微博，快来发布第一条吧！' }}</p>
     </div>
 
     <div v-else class="post-list">
-      <PostItem v-for="post in postStore.sortedPosts" :key="post.id" :post="post" @delete="$emit('delete', $event)" />
+      <PostItem v-for="post in displayedPosts" :key="post.id" :post="post" @delete="$emit('delete', $event)" />
     </div>
   </section>
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
 import { useUserStore } from '../stores/user'
 import { usePostStore } from '../stores/post'
 import PostItem from './PostItem.vue'
 
 const userStore = useUserStore()
 const postStore = usePostStore()
+
+const activeTab = ref('latest')
+
+const displayedPosts = computed(() => {
+  if (activeTab.value === 'favorites') {
+    return postStore.favoritePosts || []
+  }
+  return postStore.sortedPosts
+})
+
+const displayedCount = computed(() => displayedPosts.value.length)
+
+async function switchTab(tab) {
+  if (tab === activeTab.value) return
+  activeTab.value = tab
+  if (tab === 'favorites') {
+    await postStore.loadFavorites()
+  }
+}
 
 defineEmits(['login', 'delete'])
 </script>
@@ -47,10 +70,31 @@ defineEmits(['login', 'delete'])
   padding: 0 4px;
 }
 
-.feed-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #0d47a1;
+.feed-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background: #e3f2fd;
+  color: #1a73e8;
+}
+
+.tab-btn.active {
+  background: #1a73e8;
+  color: #fff;
 }
 
 .feed-count {

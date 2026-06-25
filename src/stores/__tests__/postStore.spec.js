@@ -125,4 +125,58 @@ describe('usePostStore', () => {
     expect(postStore.posts.length).toBe(1)
     expect(postStore.posts[0].content).toBe('existing')
   })
+
+  it('should toggle like on a post', async () => {
+    const userStore = useUserStore()
+    await userStore.register('alice', '123456')
+
+    const postStore = usePostStore()
+    await postStore.addPost('hello', [])
+    const id = postStore.posts[0].id
+
+    const likeResult = await postStore.toggleLike(id)
+    expect(likeResult.success).toBe(true)
+    expect(postStore.posts[0].likes).toContain('alice')
+
+    const unlikeResult = await postStore.toggleLike(id)
+    expect(unlikeResult.success).toBe(true)
+    expect(postStore.posts[0].likes).not.toContain('alice')
+  })
+
+  it('should toggle favorite on a post', async () => {
+    const userStore = useUserStore()
+    await userStore.register('alice', '123456')
+
+    const postStore = usePostStore()
+    await postStore.addPost('hello', [])
+    const id = postStore.posts[0].id
+
+    const favoriteResult = await postStore.toggleFavorite(id)
+    expect(favoriteResult.success).toBe(true)
+    expect(postStore.posts[0].favorites).toContain('alice')
+    expect(postStore.favoritePosts).toHaveLength(1)
+
+    const unfavoriteResult = await postStore.toggleFavorite(id)
+    expect(unfavoriteResult.success).toBe(true)
+    expect(postStore.posts[0].favorites).not.toContain('alice')
+    expect(postStore.favoritePosts).toHaveLength(0)
+  })
+
+  it('should load favorites for current user', async () => {
+    const userStore = useUserStore()
+    await userStore.register('alice', '123456')
+    await userStore.register('bob', '123456')
+
+    const postStore = usePostStore()
+    await postStore.addPost('alice post', [])
+    const id = postStore.posts[0].id
+
+    await userStore.login('bob', '123456')
+    await postStore.toggleFavorite(id)
+    await postStore.loadFavorites()
+
+    expect(postStore.favoritePosts).toHaveLength(1)
+    expect(postStore.favoritePosts[0].id).toBe(id)
+    expect(postStore.favoritePosts[0].content).toBe('alice post')
+  })
 })

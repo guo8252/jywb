@@ -27,12 +27,28 @@
         </div>
       </div>
     </div>
+
+    <div class="post-actions">
+      <button class="action-btn like-btn" :class="{ active: isLiked }" @click="handleLike">
+        <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+        </svg>
+        <span class="action-count">{{ likeCount }}</span>
+      </button>
+      <button class="action-btn favorite-btn" :class="{ active: isFavorited }" @click="handleFavorite">
+        <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+        <span class="action-count">{{ favoriteCount }}</span>
+      </button>
+    </div>
   </article>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useUserStore } from '../stores/user'
+import { usePostStore } from '../stores/post'
 import { formatTime } from '../utils/format'
 
 const props = defineProps({
@@ -45,12 +61,29 @@ const props = defineProps({
 defineEmits(['delete'])
 
 const userStore = useUserStore()
+const postStore = usePostStore()
 const videoError = ref(false)
 
 const authorColor = computed(() => userStore.getAvatarColor(props.post.author))
 const authorText = computed(() => userStore.getAvatarText(props.post.author))
 const canDelete = computed(() => userStore.currentUser?.username === props.post.author)
 const hasVideo = computed(() => props.post.media?.some(m => m.type === 'video'))
+
+const currentUsername = computed(() => userStore.currentUser?.username || '')
+const isLiked = computed(() => currentUsername.value && props.post.likes?.includes(currentUsername.value))
+const isFavorited = computed(() => currentUsername.value && props.post.favorites?.includes(currentUsername.value))
+const likeCount = computed(() => props.post.likes?.length || 0)
+const favoriteCount = computed(() => props.post.favorites?.length || 0)
+
+async function handleLike() {
+  if (!currentUsername.value) return
+  await postStore.toggleLike(props.post.id)
+}
+
+async function handleFavorite() {
+  if (!currentUsername.value) return
+  await postStore.toggleFavorite(props.post.id)
+}
 
 function handleVideoError() {
   videoError.value = true
@@ -217,6 +250,61 @@ function handleVideoError() {
 .video-tip {
   font-size: 12px;
   opacity: 0.8;
+}
+
+.post-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: #e3f2fd;
+  color: #1a73e8;
+  transform: translateY(-1px);
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
+.action-btn.active {
+  color: #1a73e8;
+}
+
+.action-btn.active .action-icon {
+  fill: #1a73e8;
+}
+
+.action-icon {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s ease;
+}
+
+.action-btn:hover .action-icon {
+  transform: scale(1.15);
+}
+
+.action-count {
+  font-weight: 500;
+  min-width: 14px;
 }
 
 @media (max-width: 480px) {

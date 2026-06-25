@@ -6,7 +6,8 @@ export const POSTS_PREFIX = 'simple_weibo_posts'
 
 export const usePostStore = defineStore('post', {
   state: () => ({
-    posts: []
+    posts: [],
+    favorites: []
   }),
 
   getters: {
@@ -14,7 +15,9 @@ export const usePostStore = defineStore('post', {
       return [...state.posts].sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
     },
 
-    postCount: (state) => state.posts.length
+    postCount: (state) => state.posts.length,
+
+    favoritePosts: (state) => state.favorites
   },
 
   actions: {
@@ -112,6 +115,91 @@ export const usePostStore = defineStore('post', {
         }
       } catch (e) {
         console.error('初始化样例失败', e)
+      }
+    },
+
+    async toggleLike(postId) {
+      const userStore = useUserStore()
+      if (!userStore.currentUser) {
+        return { success: false, message: '请先登录' }
+      }
+
+      try {
+        const username = userStore.currentUser.username
+        const res = await fetch(`${API_BASE}/posts/${postId}/like`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        })
+        const data = await res.json()
+
+        if (data.success) {
+          const index = this.posts.findIndex((post) => post.id === postId)
+          if (index !== -1) {
+            this.posts[index].likes = data.likes
+          }
+        }
+
+        return { success: data.success, message: data.message }
+      } catch (e) {
+        return { success: false, message: '操作失败' }
+      }
+    },
+
+    async toggleFavorite(postId) {
+      const userStore = useUserStore()
+      if (!userStore.currentUser) {
+        return { success: false, message: '请先登录' }
+      }
+
+      try {
+        const username = userStore.currentUser.username
+        const res = await fetch(`${API_BASE}/posts/${postId}/favorite`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        })
+        const data = await res.json()
+
+        if (data.success) {
+          const index = this.posts.findIndex((post) => post.id === postId)
+          if (index !== -1) {
+            this.posts[index].favorites = data.favorites
+          }
+
+          const favoriteIndex = this.favorites.findIndex((post) => post.id === postId)
+          if (Array.isArray(data.favorites) && data.favorites.includes(username)) {
+            if (favoriteIndex === -1) {
+              this.favorites.push(this.posts[index])
+            } else {
+              this.favorites[favoriteIndex].favorites = data.favorites
+            }
+          } else if (favoriteIndex !== -1) {
+            this.favorites.splice(favoriteIndex, 1)
+          }
+        }
+
+        return { success: data.success, message: data.message }
+      } catch (e) {
+        return { success: false, message: '操作失败' }
+      }
+    },
+
+    async loadFavorites() {
+      const userStore = useUserStore()
+      if (!userStore.currentUser) {
+        this.favorites = []
+        return
+      }
+
+      try {
+        const username = userStore.currentUser.username
+        const res = await fetch(`${API_BASE}/posts/favorites?username=${encodeURIComponent(username)}`)
+        const data = await res.json()
+        this.favorites = data.success ? data.posts : []
+      } catch (e) {
+        console.error('加载收藏失败', e)
+        this.favorites = []
       }
     }
   }
